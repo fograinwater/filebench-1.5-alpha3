@@ -71,7 +71,9 @@ typedef struct filesetentry {
 #define	FILESET_PICKEXISTS  0x10 /* Pick an existing file */
 #define	FILESET_PICKNOEXIST 0x20 /* Pick a file that doesn't exist */
 #define	FILESET_PICKBYINDEX 0x40 /* use supplied index number to select file */
-#define	FILESET_PICKFREE    FILESET_PICKUNIQUE
+// #define	FILESET_PICKFREE    FILESET_PICKUNIQUE
+#define	FILESET_PICKFREE    0x0c
+#define FILESET_SEQ_PREALLOC 0x08 /* sequential preallocation */
 
 /* fileset attributes */
 #define	FILESET_IS_RAW_DEV  0x01 /* fileset is a raw device */

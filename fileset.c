@@ -297,7 +297,14 @@ fileset_alloc_file(filesetentry_t *entry)
 	trust_tree = avd_get_bool(fileset->fs_trust_tree);
 	if ((entry->fse_flags & FSE_REUSING) && (trust_tree ||
 	    (FB_STAT(path, &sb) == 0))) {
-		if (FB_OPEN(&fdesc, path, O_RDWR, 0) == FILEBENCH_ERROR) {
+		// if (FB_OPEN(&fdesc, path, O_RDWR, 0) == FILEBENCH_ERROR) {
+		// 	filebench_log(LOG_INFO,
+		// 	    "Attempted but failed to Re-use file %s",
+		// 	    path);
+		// 	fileset_unbusy(entry, TRUE, FALSE, 0);
+		// 	return (FILEBENCH_ERROR);
+		// }
+		if (FB_OPEN(&fdesc, path, O_RDONLY, 0) == FILEBENCH_ERROR) {
 			filebench_log(LOG_INFO,
 			    "Attempted but failed to Re-use file %s",
 			    path);
@@ -691,9 +698,9 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 		goto empty;
 	}
 
-	if (flags & FILESET_PICKUNIQUE) {
+	if ((flags & FILESET_PICKUNIQUE) && !(flags & FILESET_SEQ_PREALLOC)) {
 		uint64_t  index64;
-
+		// filebench_log(LOG_INFO, "pick at random [by tt]");
 		/*
 		 * pick at random from free list in order to
 		 * distribute initially allocated files more
@@ -713,10 +720,12 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 			goto empty;
 
 	} else if (flags & FILESET_PICKBYINDEX) {
+		// filebench_log(LOG_INFO, "pick supplied index [by tt]");
 		/* pick by supplied index */
 		entry = fileset_find_entry(atp, index);
 
 	} else {
+		// filebench_log(LOG_INFO, "pick in rotation [by tt]");
 		/* pick in rotation */
 		switch (flags & FILESET_PICKMASK) {
 		case FILESET_PICKFILE:
@@ -753,6 +762,69 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 			break;
 		}
 	}
+	
+	// if (flags & FILESET_PICKUNIQUE) {
+	// 	uint64_t  index64;
+
+	// 	/*
+	// 	 * pick at random from free list in order to
+	// 	 * distribute initially allocated files more
+	// 	 * randomly on storage media. Use uniform
+	// 	 * random number generator to select index
+	// 	 * if it is not supplied with pick call.
+	// 	 */
+	// 	if (index) {
+	// 		index64 = index;
+	// 	} else {
+	// 		fb_random64(&index64, max_entries, 0, NULL);
+	// 	}
+
+	// 	entry = fileset_find_entry(atp, (int)index64);
+
+	// 	if (entry == NULL)
+	// 		goto empty;
+
+	// } else if (flags & FILESET_PICKBYINDEX) {
+	// 	/* pick by supplied index */
+	// 	entry = fileset_find_entry(atp, index);
+
+	// } else {
+	// 	/* pick in rotation */
+	// 	switch (flags & FILESET_PICKMASK) {
+	// 	case FILESET_PICKFILE:
+	// 		if (flags & FILESET_PICKNOEXIST) {
+	// 			entry = fileset_find_entry(atp,
+	// 			    fileset->fs_file_nerotor);
+	// 			fileset->fs_file_nerotor =
+	// 			    entry->fse_index + 1;
+	// 		} else {
+	// 			entry = fileset_find_entry(atp,
+	// 			    fileset->fs_file_exrotor[tid]);
+	// 			fileset->fs_file_exrotor[tid] =
+	// 			    entry->fse_index + 1;
+	// 		}
+	// 		break;
+
+	// 	case FILESET_PICKDIR:
+	// 		entry = fileset_find_entry(atp, fileset->fs_dirrotor);
+	// 		fileset->fs_dirrotor = entry->fse_index + 1;
+	// 		break;
+
+	// 	case FILESET_PICKLEAFDIR:
+	// 		if (flags & FILESET_PICKNOEXIST) {
+	// 			entry = fileset_find_entry(atp,
+	// 			    fileset->fs_leafdir_nerotor);
+	// 			fileset->fs_leafdir_nerotor =
+	// 			    entry->fse_index + 1;
+	// 		} else {
+	// 			entry = fileset_find_entry(atp,
+	// 			    fileset->fs_leafdir_exrotor);
+	// 			fileset->fs_leafdir_exrotor =
+	// 			    entry->fse_index + 1;
+	// 		}
+	// 		break;
+	// 	}
+	// }
 
 	if (entry == NULL)
 		goto empty;
