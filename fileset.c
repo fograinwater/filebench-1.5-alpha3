@@ -365,6 +365,7 @@ fileset_alloc_file(filesetentry_t *entry)
 		 * except on last write
 		 */
 		wsize = MIN(entry->fse_size - seek, FILE_ALLOC_BLOCK);
+		// filebench_log(LOG_INFO, "entry->fse_size: %llu, wsize: %llu, FILE_ALLOC_BLOCK: %llu [by tt]", (u_longlong_t)entry->fse_size, (u_longlong_t)wsize, (u_longlong_t)FILE_ALLOC_BLOCK);
 
 		ret = FB_WRITE(&fdesc, buf, wsize);
 		if (ret != wsize) {
@@ -698,6 +699,7 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 		goto empty;
 	}
 
+#if ENABLE_SEQ_PREALLOC
 	if ((flags & FILESET_PICKUNIQUE) && !(flags & FILESET_SEQ_PREALLOC)) {
 		uint64_t  index64;
 		// filebench_log(LOG_INFO, "pick at random [by tt]");
@@ -762,69 +764,70 @@ fileset_pick(fileset_t *fileset, int flags, int tid, int index)
 			break;
 		}
 	}
-	
-	// if (flags & FILESET_PICKUNIQUE) {
-	// 	uint64_t  index64;
+#else
+	if (flags & FILESET_PICKUNIQUE) {
+		uint64_t  index64;
 
-	// 	/*
-	// 	 * pick at random from free list in order to
-	// 	 * distribute initially allocated files more
-	// 	 * randomly on storage media. Use uniform
-	// 	 * random number generator to select index
-	// 	 * if it is not supplied with pick call.
-	// 	 */
-	// 	if (index) {
-	// 		index64 = index;
-	// 	} else {
-	// 		fb_random64(&index64, max_entries, 0, NULL);
-	// 	}
+		/*
+		 * pick at random from free list in order to
+		 * distribute initially allocated files more
+		 * randomly on storage media. Use uniform
+		 * random number generator to select index
+		 * if it is not supplied with pick call.
+		 */
+		if (index) {
+			index64 = index;
+		} else {
+			fb_random64(&index64, max_entries, 0, NULL);
+		}
 
-	// 	entry = fileset_find_entry(atp, (int)index64);
+		entry = fileset_find_entry(atp, (int)index64);
 
-	// 	if (entry == NULL)
-	// 		goto empty;
+		if (entry == NULL)
+			goto empty;
 
-	// } else if (flags & FILESET_PICKBYINDEX) {
-	// 	/* pick by supplied index */
-	// 	entry = fileset_find_entry(atp, index);
+	} else if (flags & FILESET_PICKBYINDEX) {
+		/* pick by supplied index */
+		entry = fileset_find_entry(atp, index);
 
-	// } else {
-	// 	/* pick in rotation */
-	// 	switch (flags & FILESET_PICKMASK) {
-	// 	case FILESET_PICKFILE:
-	// 		if (flags & FILESET_PICKNOEXIST) {
-	// 			entry = fileset_find_entry(atp,
-	// 			    fileset->fs_file_nerotor);
-	// 			fileset->fs_file_nerotor =
-	// 			    entry->fse_index + 1;
-	// 		} else {
-	// 			entry = fileset_find_entry(atp,
-	// 			    fileset->fs_file_exrotor[tid]);
-	// 			fileset->fs_file_exrotor[tid] =
-	// 			    entry->fse_index + 1;
-	// 		}
-	// 		break;
+	} else {
+		/* pick in rotation */
+		switch (flags & FILESET_PICKMASK) {
+		case FILESET_PICKFILE:
+			if (flags & FILESET_PICKNOEXIST) {
+				entry = fileset_find_entry(atp,
+				    fileset->fs_file_nerotor);
+				fileset->fs_file_nerotor =
+				    entry->fse_index + 1;
+			} else {
+				entry = fileset_find_entry(atp,
+				    fileset->fs_file_exrotor[tid]);
+				fileset->fs_file_exrotor[tid] =
+				    entry->fse_index + 1;
+			}
+			break;
 
-	// 	case FILESET_PICKDIR:
-	// 		entry = fileset_find_entry(atp, fileset->fs_dirrotor);
-	// 		fileset->fs_dirrotor = entry->fse_index + 1;
-	// 		break;
+		case FILESET_PICKDIR:
+			entry = fileset_find_entry(atp, fileset->fs_dirrotor);
+			fileset->fs_dirrotor = entry->fse_index + 1;
+			break;
 
-	// 	case FILESET_PICKLEAFDIR:
-	// 		if (flags & FILESET_PICKNOEXIST) {
-	// 			entry = fileset_find_entry(atp,
-	// 			    fileset->fs_leafdir_nerotor);
-	// 			fileset->fs_leafdir_nerotor =
-	// 			    entry->fse_index + 1;
-	// 		} else {
-	// 			entry = fileset_find_entry(atp,
-	// 			    fileset->fs_leafdir_exrotor);
-	// 			fileset->fs_leafdir_exrotor =
-	// 			    entry->fse_index + 1;
-	// 		}
-	// 		break;
-	// 	}
-	// }
+		case FILESET_PICKLEAFDIR:
+			if (flags & FILESET_PICKNOEXIST) {
+				entry = fileset_find_entry(atp,
+				    fileset->fs_leafdir_nerotor);
+				fileset->fs_leafdir_nerotor =
+				    entry->fse_index + 1;
+			} else {
+				entry = fileset_find_entry(atp,
+				    fileset->fs_leafdir_exrotor);
+				fileset->fs_leafdir_exrotor =
+				    entry->fse_index + 1;
+			}
+			break;
+		}
+	}
+#endif
 
 	if (entry == NULL)
 		goto empty;
@@ -1120,7 +1123,7 @@ fileset_create(fileset_t *fileset)
 	start = gethrtime();
 
 	filebench_log(LOG_INFO,
-		"Pre-allocating files in %s tree", fileset_name);
+		"Pre-allocating files in %s tree, FILE_ALLOC_BLOCK=%llu", fileset_name, FILE_ALLOC_BLOCK);
 
 	if (AVD_IS_BOOL(fileset->fs_preallocpercent)) {
 		if (avd_get_bool(fileset->fs_preallocpercent))

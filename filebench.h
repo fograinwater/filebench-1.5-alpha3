@@ -28,6 +28,8 @@
 #ifndef _FB_FILEBENCH_H
 #define	_FB_FILEBENCH_H
 
+#define ENABLE_SEQ_PREALLOC	0
+
 #include "config.h"
 
 #include <stdlib.h>
