@@ -155,13 +155,13 @@ stats_snap(void)
 		}
 
 		filebench_log(LOG_DEBUG_SCRIPT,
-		    "flowop %-20s-%4d  - %5d ops %5.1lf ops/sec %5.1lfmb/s "
-		    "%8.3fms/op",
+		    "flowop %-20s-%4d  - %5d ops %5.1lf ops/sec %5.1lfMB/s %5.1lfKB/s %8.3fms/op",
 		    flowop->fo_name,
 		    flowop->fo_instance,
 		    flowop->fo_stats.fs_count,
 		    flowop->fo_stats.fs_count / total_time_sec,
 		    (flowop->fo_stats.fs_bytes / MB_FLOAT) / total_time_sec,
+			(flowop->fo_stats.fs_bytes / KB_FLOAT) / total_time_sec,
 		    flowop->fo_stats.fs_count ?
 		    flowop->fo_stats.fs_total_lat /
 		    (flowop->fo_stats.fs_count * SEC2MS_FLOAT) : 0);
@@ -186,22 +186,43 @@ stats_snap(void)
 		}
 
 		(void) snprintf(line, sizeof(line), "%-20s %dops %8.0lfops/s "
-		    "%5.1lfmb/s %8.1fms/op",
+		    "%5.1lfMB/s %5.1lfKB/s %8.1fms/op",
 		    flowop->fo_name,
 		    flowop->fo_stats.fs_count,
 		    flowop->fo_stats.fs_count / total_time_sec,
 		    (flowop->fo_stats.fs_bytes / MB_FLOAT) / total_time_sec,
+			(flowop->fo_stats.fs_bytes / KB_FLOAT) / total_time_sec,
 		    flowop->fo_stats.fs_count ?
 		    flowop->fo_stats.fs_total_lat /
 		    (flowop->fo_stats.fs_count * SEC2MS_FLOAT) : 0);
 		(void) strcat(str, line);
 
-		(void) snprintf(line, sizeof(line)," [%.2fms - %5.2fms]",
+		(void) snprintf(line, sizeof(line),"\tmin~max [%.2fms - %5.2fms]",
 			flowop->fo_stats.fs_minlat / SEC2MS_FLOAT,
 			flowop->fo_stats.fs_maxlat / SEC2MS_FLOAT);
 		(void) strcat(str, line);
 
+		/* calculate P90 latency */
+		double pct = 0.90;
+		uint64_t target = flowop->fo_stats.fs_count * pct;
+		uint64_t sum = 0;
+		uint64_t p90_low_ns = 0;
+		uint64_t p90_high_ns = 0;
+		for (int i = 0; i < OSPROF_BUCKET_NUMBER; i++) {
+			sum += flowop->fo_stats.fs_distribution[i];
+			if (sum >= target) {
+				p90_low_ns = (i == 0) ? 0 : (1ULL << (i - 1));
+				p90_high_ns = (1ULL << i);
+				break;
+			}
+		}
+
 		if (filebench_shm->lathist_enabled) {
+			(void) snprintf(line, sizeof(line),"\tP90[%.2fms - %5.2fms]",
+			p90_low_ns / SEC2MS_FLOAT,
+			p90_high_ns / SEC2MS_FLOAT);
+			(void) strcat(str, line);
+
 			(void) sprintf(histogram, "\t[ ");
 			for (i = 0; i < OSPROF_BUCKET_NUMBER; i++) {
 				(void) sprintf(hist_reading, "%lu ",
@@ -224,12 +245,14 @@ stats_snap(void)
 
 	filebench_log(LOG_INFO,
 	    "IO Summary: %5d ops %5.3lf ops/s %0.0lf/%0.0lf rd/wr "
-	    "%5.1lfmb/s %5.1fms/op",
+	    "%5.1lfMB/s %5.1lfKB/s %5.1fms/op",
 	    iostat->fs_count + aiostat->fs_count,
 	    (iostat->fs_count + aiostat->fs_count) / total_time_sec,
 	    (iostat->fs_rcount + aiostat->fs_rcount) / total_time_sec,
 	    (iostat->fs_wcount + aiostat->fs_wcount) / total_time_sec,
 	    ((iostat->fs_bytes + aiostat->fs_bytes) / MB_FLOAT)
+						/ total_time_sec,
+		((iostat->fs_bytes + aiostat->fs_bytes) / KB_FLOAT)
 						/ total_time_sec,
 	    (iostat->fs_rcount + iostat->fs_wcount) ?
 	    iostat->fs_total_lat /
