@@ -283,6 +283,7 @@ fileset_alloc_file(filesetentry_t *entry)
 	fb_fdesc_t fdesc;
 	int trust_tree;
 
+#if FIRST_GAMMA_READ
 	fileset = entry->fse_fileset;
 	(void) fb_strlcpy(path, avd_get_str(fileset->fs_path), MAXPATHLEN);
 	(void) fb_strlcat(path, "/", MAXPATHLEN);
@@ -383,6 +384,7 @@ fileset_alloc_file(filesetentry_t *entry)
 	(void) FB_CLOSE(&fdesc);
 
 	free(buf);
+#endif /* FIRST_GAMMA_READ */
 
 	/* unbusy the allocated entry */
 	fileset_unbusy(entry, TRUE, TRUE, 0);

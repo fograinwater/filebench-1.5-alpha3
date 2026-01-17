@@ -29,6 +29,7 @@
 #define	_FB_FILEBENCH_H
 
 #define ENABLE_SEQ_PREALLOC	0
+#define FIRST_GAMMA_READ	1
 
 #include "config.h"
 

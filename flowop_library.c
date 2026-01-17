@@ -1502,7 +1502,8 @@ flowoplib_openfile_common(threadflow_t *threadflow, flowop_t *flowop, int fd)
 	else if (avd_get_bool(flowop->fo_fileset->fs_writeonly) == TRUE)
 		openflag = O_WRONLY;
 	else
-		openflag = O_RDWR;
+		openflag = O_RDONLY;
+		// openflag = O_RDWR;
 
 	/*
 	 * If the flowop doesn't default to persistent fd
@@ -2249,8 +2250,11 @@ flowoplib_readwholefile(threadflow_t *threadflow, flowop_t *flowop)
 	/* Measure time to read bytes */
 	flowop_beginop(threadflow, flowop);
 	(void) FB_LSEEK(fdesc, 0, SEEK_SET);
-	while ((ret = FB_READ(fdesc, iobuf, iosize)) > 0)
+	// filebench_log(LOG_INFO, "readwholefile bytes: %d, fd: %d [by tt]1", ret, fdesc->fd_num);
+	while ((ret = FB_READ(fdesc, iobuf, iosize)) > 0) {
 		bytes += ret;
+		// filebench_log(LOG_INFO, "readwholefile bytes: %d, fd: %d [by tt]2", ret, fdesc->fd_num);
+	}
 
 	flowop_endop(threadflow, flowop, bytes);
 
