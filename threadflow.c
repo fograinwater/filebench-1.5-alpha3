@@ -115,9 +115,12 @@ threadflow_init(procflow_t *procflow)
 		int i;
 
 		instances = avd_get_int(threadflow->tf_instances);
-		filebench_log(LOG_VERBOSE,
-		    "Starting %d %s threads",
-		    instances, threadflow->tf_name);
+		// filebench_log(LOG_VERBOSE,
+		//     "Starting %d %s threads",
+		//     instances, threadflow->tf_name);
+		filebench_log(LOG_INFO,
+			"Starting %d %s threads [by tt]",
+			instances, threadflow->tf_name);
 
 		for (i = 1; i < instances; i++) {
 			/* Create threads */
@@ -413,6 +416,9 @@ threadflow_define(procflow_t *procflow, char *name,
 		return (NULL);
 
 	threadflow->tf_instances = instances;
+	filebench_log(LOG_INFO, "Defined threadflow %s with %ld instances [by tt]",
+	    threadflow->tf_name,
+	    avd_get_int(threadflow->tf_instances));
 
 	(void) ipc_mutex_unlock(&filebench_shm->shm_threadflow_lock);
 

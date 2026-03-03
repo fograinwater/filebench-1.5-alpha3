@@ -768,6 +768,8 @@ procflow_define(char *name, avd_t instances)
 	procflow = procflow_define_common(&filebench_shm->shm_procflowlist,
 	    name, NULL, FLOW_MASTER);
 	procflow->pf_instances = instances;
+	filebench_log(LOG_INFO, "Defined process %s instances %llu [by tt]",
+	    name, (u_longlong_t)avd_get_int(instances));
 
 	(void) ipc_mutex_unlock(&filebench_shm->shm_procflow_lock);
 
